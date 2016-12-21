@@ -1,6 +1,6 @@
 ## Documentación de MongoDB
 
-Documentación de MongoDB, pymongo (cliente para python) y MongoEngine.
+Documentación de MongoDB, pymongo (cliente para python) y MongoEngine (Object-Document Mapper for Python).
 
 Creada a partir de las transparencias de la asignatura **Gestión de la Información en la Web** de la **Universidad Complutense de Madrid**.
 
@@ -321,9 +321,9 @@ Ver más detalles en las **[Referencias (Operaciones CRUD)](#11. Referencias)**
 -  Los diccionarios Python y los documentos JSON tienen la **misma sintaxis**:
 
    ```python
-         doc = {'name':'pepe', 'edad':24}
-         # doc es un diccionario Python
-         collection.insert_one(doc)
+          doc = {'name':'pepe', 'edad':24}
+          # doc es un diccionario Python
+          collection.insert_one(doc)
    ```
 
 ### 4.5. Valores de retorno
@@ -1070,6 +1070,16 @@ DOC_DIR
     - Todas las águilas reales: `AguilaReal.objects` 
     - Águilas (y águilas reales) de al menos 3 metros: `Aguila.objects(alt__gte=3)`
     - Todas las aves con nombre acabado en 'i': `Ave.objects(nombre__endswith='i')`
+
+## 7. Aggregation pipelines
+
+Las **tuberías de agregación** (aggregation pipelines) son un mecanismo muy potente para procesar las colecciones aplicando varias **etapas**.
+
+Cada etapa recoge los datos de la etapa anterior, y su resultado es la entrada de la etapa siguiente.
+
+El resultado de una tubería de agregación suelen ser valores **agregados** a partir de colecciones(resúmenes, combinaciones, etc.)
+
+![tub1](/Users/pep/dev/mongodb-doc/tub1.png)
 
 ## 11. Referencias
 
