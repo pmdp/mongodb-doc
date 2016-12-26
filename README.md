@@ -321,9 +321,9 @@ Ver más detalles en las **[Referencias (Operaciones CRUD)](#11. Referencias)**
 -  Los diccionarios Python y los documentos JSON tienen la **misma sintaxis**:
 
    ```python
-          doc = {'name':'pepe', 'edad':24}
-          # doc es un diccionario Python
-          collection.insert_one(doc)
+           doc = {'name':'pepe', 'edad':24}
+           # doc es un diccionario Python
+           collection.insert_one(doc)
    ```
 
 ### 4.5. Valores de retorno
@@ -388,7 +388,7 @@ print(res.deleted_count)
   - El tipo de datos que contiene
   - Si almacena documentos **anidados**, también será establecer su esquema implícito.
 
-  En python se usa **[MongoEngine](#10. MongoEngine)** como capa intermedia entre MongoDB y el programa.
+  En python se usa **[MongoEngine](#6. MongoEngine)** como capa intermedia entre MongoDB y el programa.
 
 ```shell
 DOC_USUARIO
@@ -1079,14 +1079,456 @@ Cada etapa recoge los datos de la etapa anterior, y su resultado es la entrada d
 
 El resultado de una tubería de agregación suelen ser valores **agregados** a partir de colecciones(resúmenes, combinaciones, etc.)
 
-![tub1](/Users/pep/dev/mongodb-doc/tub1.png)
+![tub1](media/tub1.png)
+
+### 7.1 Lanzamiento
+
+- Las tuberías de agregación se lanzan con el comando aggregate a partir de una colección:`db.collection.aggregate([etapa1, ..., etapan])`.
+
+
+- El comando **aggregate** recibe una lista dedocumentos **etapa1, ..., etapaN** que definen el **orden** y la **configuración** de cada una de las etapas.
+
+### 7.2 Etapas
+
+- Las tuberías de agregación pueden tener cualquier número de etapas.
+- El programador configura la secuencia de etapas a aplicar mediante documentos.
+- El **resultado** de una tubería de agregación se puede volcar en una **nueva colección**, o ser devuelto como un cursor como si se tratase de una consulta común.
+- En las **colecciones intermedias** no es necesario garantizar que el campo **_id** sea único.
+- Existen al menos 13 tipos diferentes de etapas que se pueden utilizar, más info en  [Referencias Aggregation Pipelines](#11.4 Aggregation Pipelines).
+
+#### 7.2.1 $project
+
+- La etapa **$project** sirve para **eliminar o añadir campos** a los documentos, es decir, reestructurar documentos.
+
+
+- La etapa $project se define con la siguiente sintaxis: `{ $project: { <proyección> } }`.
+
+
+- **\<proyección\>** es una serie de parejas:
+
+  - **\<campo\>: \<1 o true\>** → 'campo' es incluido. Por defecto ningún campo se incluye si no se expresa explícitamente, salvo _id._
+  - **\_id: \<0 o false\>** → No incluir el campo _id, que por defecto siempre se incluye.
+  - **\<campo\>: \<expresión\>** → Añadir un nuevo campo o restablecer el contenido de un campo existente.
+
+- **Ejemplos**:
+
+  - Quedarse únicamente con el campo **name**:
+
+    ```shell
+    db.agg.aggregate([
+      {$project : {_id:0, age:1}}
+    ])
+    ```
+
+    ![project1](media/project1.png)
+
+  - Renombrar el campo **age** a **edad** y ocultar **name**:
+
+    ```shell
+    db.agg.aggregate([
+      {$project : {edad:'$age'}}
+    ])
+    ```
+
+    ![project2](media/project2.png)
+
+  - **Aumentar en 1 año** el campo de **age** de cada documento:
+
+    ```shell
+    db.agg.aggregate([
+      {$project : {age:{$add:'$age',1]}, name:1}}
+    ])
+    ```
+
+    ![project3](media/project3.png)
+
+#### 7.2.2 $match
+
+- La etapa **$match filtra** los documentos, dejando pasar únicamente aquellos que cumplen una cierta **propiedad**.
+
+- La sintaxis de la etapa $match es: `{ $match: { <propiedad> } }`.
+
+- **\<propiedad\>** es una condición representada de la misma manera que las usadas en find().
+
+- **Optimizar** con **$match**:
+
+  - La etapa $match **reduce** el número de documentos a aquellos que cumplen la propiedad.
+  - Por ello es interesante colocar $match **lo más al principio** de la tubería:
+    - Las **etapas siguientes** serán más rápidas pues manejarán **menos documentos**.
+    - Al ejecutarse al inicio, es más posible que $match saque provecho de los **índices**.
+
+- **Ejemplos**:
+
+  - Filtrar los documentos cuya **edad** es **23**:
+
+    ```shell
+    db.agg.aggregate([
+      {$match : {age:23}}
+    ])
+    ```
+
+    ![match1](media/match1.png)
+
+  - Filtrar los documentos con **edad superior a 28** años:
+
+    ```shell
+    db.agg.aggregate([
+      {$match : {age:{$gt:28}} }
+    ])
+    ```
+
+    ![match2](media/match2.png)
+
+  - Filtrar los documentos que tienen **edad inferior** a **30** años o se llaman **"eva"**:
+
+    ```shell
+    db.agg.aggregate([
+      {$match: {$or: [{age:{$lt:30}},{name:"eva"}] }}
+    ])
+    ```
+
+    ![match3](media/match3.png)
+
+#### 7.2.3 $sort
+
+- **Ordena** los documentos recibidos, de acuerdo al orden pasado como parámetro.
+
+- La sintaxis de la etapa $sort es: `{ $sort: <orden> }`.
+
+- **\<orden\>** es un documento con información de orden representada de la misma manera que la usadas en sort().
+
+- **Ejemplos:**
+
+  - Ordenar los documentos por **edad ascendente**:
+
+    ```shell
+    db.agg.aggregate([
+      {$sort : {age:1}}
+    ])
+    ```
+
+    ![sort1](media/sort1.png)
+
+  - Ordear los documentos por **nombre descendente**, y luego por **_id ascendente**:
+
+    ```shell
+    db.agg.aggregate([
+      {$sort : {name:-1, _id:1}}
+    ])
+    ```
+
+    ![sort2](media/sort2.png)
+
+#### 7.2.4 $limit
+
+- La etapa $limit sirve para limitar a un número fijo la cantidad de documentos que pasan a la siguiente etapa.
+
+- La sintaxis de la etapa $limit es: `{ $limit: <entero positivo> }`.
+
+- **\<entero positivo\>** es cualquier número entero mayor que 0.
+
+- **Ejemplo:**
+
+  - Limitar la salida a **2 documentos:**
+
+    ```shell
+    db.agg.aggregate([
+    	{$limit : 2}
+    ])
+    ```
+
+    ![limit1](media/limit1.png)
+
+#### 7.2.5 $limit y $sort
+
+- $limit devuelve los **primeros 'n'** documentos de entrada, respetando el orden que éstos tienen.
+- Si se encadena una etapa **$sort** y justo después una etapa **$limit**, MongoDB **optimizará** la etapa $sort:
+  - Durante la ordenación ($sort) MongoDB únicamente almacenará **'n' resultados** en memoria.
+
+#### 7.2.6 $skip
+
+- La etapa $skip **descarta** los primeros **'n' documentos** de entrada y devuelve el resto.
+
+- La sintaxis de la etapa $limit es: `{ $skip: <entero positivo> }`.
+
+- **\<entero positivo\>** es cualquier número entero mayor o igual que 0.
+
+- **Ejemplos:**
+
+  - **Descartar** el **primer** documento:
+
+    ```shell
+    db.agg.aggregate([
+      {$skip : 1}
+    ])
+    ```
+
+    ![skip1](media/skip1.png)
+
+#### 7.2.7 $unwind
+
+- La etapa $unwind **despliega** un campo que contiene una lista, generando un **documento** por **cada valor de la lista**.
+
+- La sintaxis de la etapa $limit es: `{ $unwind: <campo> }`.
+
+- **\<campo\>** es el nombre del campo que queremos usar para desplegar.
+
+- **Ejemplos:**
+
+  - Desplegar por el campo **nums**:
+
+    ```shell
+    db.agg.aggregate([
+       {$unwind: "$nums"}
+    ])
+    ```
+
+    ![unwind1](media/unwind1.png)
+
+    ​
+
+  - Si en algún documento el **campo** escogido para el desplegado **no contiene una lista**, se tratará como una **lista unitaria**. No lanzará **ningún error**.
+
+    ```shell
+    db.agg.aggregate([
+      {$unwind: "$name"}
+    ])
+    ```
+
+    ![unwind2](media/unwind2.png)
+
+    ​
+
+  - Si en algún documento el **campo** escogido para el desplegado **no existe**, ese documento se **ignorará** pero no se lanzará **ningún error**:
+
+    ```shell
+    db.agg.aggregate([
+      {$unwind: "$years"}
+    ])
+    ```
+
+    ![unwind3](media/unwind3.png)
+
+    ​
+
+  - El **campo** escogido para desplegar puede estar **anidado** dentro de otro campo:
+
+    ```shell
+    db.agg.aggregate([
+      {$unwind: "$likes.nums"}
+    ])
+    ```
+
+    ![unwind4](media/unwind4.png)
+
+#### 7.2.8 $group
+
+- La etapa $group **agrupa documentos** con el mismo valor en un campo **(clave)** en un solo documento.
+
+
+- Este documento generado tendrá campos que **combinan** los datos de aquellos que tenían la misma clave:
+
+  - Edad media de los usuario de España.
+  - Puntuación máxima en un examen.
+  - Lista de todos los usuarios de Francia.
+
+- La etapa $group tiene la sintaxis:
+
+  ```shell
+  { $group: { _id: <clave>,
+  	<campo1>: { <acumulador1> : <expresion1> }, ... } }
+  ```
+
+- **\<clave\>** es el campo o combinación de campos que se utilizará como clave.
+
+- **\<campoN\>** es el nombre del campo que almacenará el valor combinado.
+
+- **\<acumuladorN\>** es el operador acumulador ($sum, $avg, $max, etc.) que se usará para agregar los valores de los documentos.
+
+- **\<expresionN\>** es la expresión que genera los valores que se acumularán por cada documento. Puede ser el nombre de un campo , una constante, una operación aritmética, de listas, etc.
+
+- **Ejemplo:**
+
+  - Obtener la edad máxima de los estudiantes por cada Universidad:
+
+    ```shell
+    db.agg.aggregate([
+       {$group: {_id: "$edu",
+                 max_age: {$max:"$age"} }}
+    ])
+    ```
+
+    ![group1](media/group1.png)
+
+  - Calcular la **edad media** y el **número de alumnos** por **Universidad**:
+
+    ```shell
+    db.agg.aggregate([
+      $group: {_id: "$edu",
+               avg_age: {$avg:"$age"}, count: {$sum:1} }}
+    ])
+    ```
+
+    ![group2](media/group2.png)
+
+    ​
+
+  - Obtener los nombres de los **alumnos** de cada **Universidad** en un único documento:
+
+    ```shell
+    db.agg.aggregate([
+         {$group: {_id: "$edu",
+                   names:{$push:"$name"} }}
+    ])
+    ```
+
+    ![group3](media/group3.png)
+
+#### 7.2.9 $lookup
+
+- La etapa $lookup realiza una combinación externa izquierda **(left outer join)** de los documentos de entrada con otra colección.
+
+- La combinación se realiza comparando dos campos de los documentos que pueden tener un **nombre diferente**: uno de la colección **local** y otro de la **externa**.
+
+- El documento de la colección se **extiende** con una **lista** conteniendo los documentos de la otra colección que tienen el mismo valor en el campo.
+
+- La sintaxis de la etapa $lookup es:
+
+  ```shell
+  { $lookup: {
+  	from: <colección externa a combinar>,
+  	localField: <nombre del campo de los docs de la colección local a comparar>, 
+  	foreignField: <nombre del campo de los docs. De la colección externa a comparar>,
+  	as: <nombre del campo generado que almacenará la lista>
+  }}
+  ```
+
+- El nuevo campo añadido por $lookup contiene una lista con los documentos **completos** que encajan.
+
+- Este nuevo campo puede ser una **lista vacía** si en la colección externa no hay ningún documento que encaje.
+
+- La colección externa debe pertenecer a la **misma base de datos**.
+
+- **Ejemplo:**
+
+  - Combinar usuarios con sus pedidos:
+
+    ```shell
+    db.users.aggregate([
+      $lookup: { from : "orders",
+                 localField : "dni",
+                 foreignField  : "user",
+                 as : "pedidos"} }
+    ])
+    ```
+
+    ![lookup1](media/lookup1.png)
+
+#### 7.2.10 $out
+
+- La etapa $out **almacena** los documentos en una **colección**.
+
+- La colección de salida se **crea** si no existe, y si existe se **reemplaza completamente**.
+
+- La sintaxis de $out es: `{ $out: <colección de salida> }`.
+
+- La etapa $out fallará si existen documentos con el campo **_id** duplicado.
+
+- Si los documentos carecen de _id, éste campo será **generado automáticamente**.
+
+- La etapa $out debe ser la **última de la tubería**.
+
+- **Ejemplo:**
+
+  - Volcar los resultados en la colección **summary:**
+
+    ```shell
+    db.users.aggregate([
+    	..., // Etapas anteriores
+       { $out : “summary”}
+    ]}
+    ```
+
+### 7.3 Conectar tuberías
+
+- Hasta ahora hemos visto ejemplos de tuberías de una sola etapa, que toman la entrada directamente de una colección.
+
+- La potencia del aggregation pipeline consiste en su **combinar etapas**.
+
+- Para ello solo es necesario definir las etapas enel orden deseado.
+
+- **Ejemplos:**
+
+  - Universidades con 2 o más alumnos:
+
+    ```shell
+    db.students.aggregate([
+      {$group : {"_id":"$edu", "num":{$sum:1}}},
+      {$match : {"num":{$gte:2}}}
+    ])
+    ```
+
+    ![ej1](media/ej1.png)
+
+  - Universidad que tiene más alumnos:
+
+    ```shell
+    db.students.aggregate([
+      {$group : {"_id":"$edu", "num":{$sum:1}}},
+      {$sort : {"num" : -1}},
+      {$limit : 1},
+    ])
+    ```
+
+    ![ej2](media/ej2.png)
+
+  - Frecuencia de cada número:
+
+    ```shell
+    db.students.aggregate([
+      {$unwind:"$nums"},
+      {$group: {"_id":"$nums", "freq":{"$sum":1}}}
+    ])
+    ```
+
+    ![ej3](media/ej3.png)
+
+### 7.4 Aggregation pipelines en pymongo
+
+- Los objetos **Collection** de pymongo tienen un método **aggregate** (ver detalles en [Referencias](#11.4 Aggregation Pipelines)).
+
+- El método aggregate() recibe una **lista Python de etapas** representadas como diccionarios.
+
+- La sintaxis de cada etapa es **exactamente igual** a la usada en la **consola** de MongoDB.
+
+  ```python
+  from pymongo import MongoClient
+
+  mongoclient = MongoClient()
+  db = mongoclient['giw']
+  c = db['users']
+
+  c.insert_one({'name' : 'ana', '_id' : 0, 'edad' : 24})
+  c.insert_one({'name' : 'eva', '_id' : 1, 'edad' : 28})
+  c.insert_one({'name' : 'pep', '_id' : 2, 'edad' : 34})
+
+  r = c.aggregate( [
+    {'$match' : {'edad': {'$gt' : 25}} },
+    {'$sort' : {'edad' : -1}}
+  ])
+
+  for e in r:
+      #Procesar e
+  ```
+
+  ​
 
 ## 11. Referencias
 
 - **Operaciones CRUD** (crear, leer, actualizar y eliminar): https://docs.mongodb.com/manual/crud/
 - **Operadores de consulta**: https://docs.mongodb.com/manual/reference/operator/query/
 
-### 11.2 API pymongo: 
+### 11.2 API pymongo:
 
 - https://api.mongodb.com/python/current/api/index.html
 - **API pymongo (Collection)**: https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection
@@ -1100,3 +1542,7 @@ El resultado de una tubería de agregación suelen ser valores **agregados** a
 - Consultas con MongoEngine:http://docs.mongoengine.org/guide/querying.html
 - QuerySet: http://docs.mongoengine.org/apireference.html#mongoengine.queryset.QuerySet
 - Operadores de consulta: http://docs.mongoengine.org/guide/querying.html#query-operators
+
+### 11.4 Aggregation Pipelines
+
+- Pipeline Aggregation Stages: https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/
