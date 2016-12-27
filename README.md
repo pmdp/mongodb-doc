@@ -321,9 +321,9 @@ Ver más detalles en las **[Referencias (Operaciones CRUD)](#11. Referencias)**
 -  Los diccionarios Python y los documentos JSON tienen la **misma sintaxis**:
 
    ```python
-           doc = {'name':'pepe', 'edad':24}
-           # doc es un diccionario Python
-           collection.insert_one(doc)
+            doc = {'name':'pepe', 'edad':24}
+            # doc es un diccionario Python
+            collection.insert_one(doc)
    ```
 
 ### 4.5. Valores de retorno
@@ -1136,7 +1136,7 @@ El resultado de una tubería de agregación suelen ser valores **agregados** a
 
     ```shell
     db.agg.aggregate([
-      {$project : {age:{$add:'$age',1]}, name:1}}
+      {$project : {age:{$add: ['$age',1]}, name:1}}
     ])
     ```
 
@@ -1455,7 +1455,7 @@ El resultado de una tubería de agregación suelen ser valores **agregados** a
 
 - La potencia del aggregation pipeline consiste en su **combinar etapas**.
 
-- Para ello solo es necesario definir las etapas enel orden deseado.
+- Para ello solo es necesario definir las etapas en el orden deseado.
 
 - **Ejemplos:**
 
